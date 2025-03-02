@@ -1,5 +1,5 @@
 # Polynomial-Approximation-24-25
-PolynomialApprox24-25-YourName/
+PolynomialApprox24-25-Muhammad Imran/
 ├── adaptive_tree/
 │   ├── __init__.py
 │   ├── tree.py           # Tree and Node classes
