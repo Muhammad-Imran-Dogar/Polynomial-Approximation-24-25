@@ -1,0 +1,44 @@
+def newest_vertex_bisection(node, min_angle=20):
+    v0, v1, v2 = node.vertices
+    i, j = get_longest_edge(node.vertices)
+    base_v1, base_v2 = node.vertices[i], node.vertices[j]
+    newest = node.vertices[3 - i - j]
+    mid = ((base_v1[0] + base_v2[0]) / 2, (base_v1[1] + base_v2[1]) / 2)
+    child1 = TreeNode([base_v1, mid, newest], parent=node)
+    child2 = TreeNode([mid, base_v2, newest], parent=node)
+    if not is_acceptable_triangle(child1.vertices, min_angle) or not is_acceptable_triangle(child2.vertices, min_angle):
+        mid01 = ((v0[0] + v1[0]) / 2, (v0[1] + v1[1]) / 2)
+        mid12 = ((v1[0] + v2[0]) / 2, (v1[1] + v2[1]) / 2)
+        mid20 = ((v2[0] + v0[0]) / 2, (v2[1] + v0[1]) / 2)
+        return [
+            TreeNode([v0, mid01, mid20], parent=node),
+            TreeNode([mid01, v1, mid12], parent=node),
+            TreeNode([mid20, mid12, v2], parent=node),
+            TreeNode([mid01, mid12, mid20], parent=node)
+        ]
+    return [child1, child2]
+
+def find_adjacent_leaves(tree, node):
+    adjacent = []
+    edges = [(node.vertices[0], node.vertices[1]), (node.vertices[1], node.vertices[2]), (node.vertices[2], node.vertices[0])]
+    for edge in edges:
+        for leaf in tree.leaves:
+            if leaf != node and set(edge).issubset(set(leaf.vertices)):
+                adjacent.append(leaf)
+    return adjacent
+
+def complete_triangulation(tree, node, min_angle=20):
+    if not node.is_leaf:
+        return
+    adjacent_leaves = find_adjacent_leaves(tree, node)
+    for adj in adjacent_leaves:
+        if adj.generation < node.generation - 1:  # Enforce graded mesh
+            children = newest_vertex_bisection(adj, min_angle)
+            adj.add_children(children)
+            tree.update_leaves()
+            complete_triangulation(tree, adj, min_angle)
+        elif not is_acceptable_triangle(adj.vertices, min_angle):
+            children = newest_vertex_bisection(adj, min_angle)
+            adj.add_children(children)
+            tree.update_leaves()
+            complete_triangulation(tree, adj, min_angle)
