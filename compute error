@@ -1,0 +1,55 @@
+def compute_local_error(f, node, p=2, degree=0):
+    """Compute L^p error over a triangle; degree=0 (constant), degree=1 (linear), degree=2 (quadratic, extension)."""
+    v0, v1, v2 = node.vertices
+    area = abs(np.cross(np.array(v1) - v0, np.array(v2) - v0)) / 2
+
+    if degree == 0:  # Original discontinuous setting
+        avg = (f(v0[0], v0[1]) + f(v1[0], v1[1]) + f(v2[0], v2[1])) / 3
+        integrand = lambda x, y: abs(f(x, y) - avg) ** p
+    elif degree == 1:  # Original continuous setting
+        A = np.array([[v0[0], v0[1], 1], [v1[0], v1[1], 1], [v2[0], v2[1], 1]])
+        b = np.array([f(v0[0], v0[1]), f(v1[0], v1[1]), f(v2[0], v2[1])])
+        try:
+            coeffs = np.linalg.solve(A, b)  # ax + by + c
+            integrand = lambda x, y: abs(f(x, y) - (coeffs[0] * x + coeffs[1] * y + coeffs[2])) ** p
+        except np.linalg.LinAlgError:
+            return float('inf')
+    elif degree == 2:  # Extension: quadratic approximation
+        mid01 = ((v0[0] + v1[0]) / 2, (v0[1] + v1[1]) / 2)
+        mid12 = ((v1[0] + v2[0]) / 2, (v1[1] + v2[1]) / 2)
+        mid20 = ((v2[0] + v0[0]) / 2, (v2[1] + v0[1]) / 2)
+        A = np.array([
+            [v0[0]**2, v0[0]*v0[1], v0[1]**2, v0[0], v0[1], 1],
+            [v1[0]**2, v1[0]*v1[1], v1[1]**2, v1[0], v1[1], 1],
+            [v2[0]**2, v2[0]*v2[1], v2[1]**2, v2[0], v2[1], 1],
+            [mid01[0]**2, mid01[0]*mid01[1], mid01[1]**2, mid01[0], mid01[1], 1],
+            [mid12[0]**2, mid12[0]*mid12[1], mid12[1]**2, mid12[0], mid12[1], 1],
+            [mid20[0]**2, mid20[0]*mid20[1], mid20[1]**2, mid20[0], mid20[1], 1]
+        ])
+        b = np.array([
+            f(v0[0], v0[1]), f(v1[0], v1[1]), f(v2[0], v2[1]),
+            f(mid01[0], mid01[1]), f(mid12[0], mid12[1]), f(mid20[0], mid20[1])
+        ])
+        try:
+            coeffs = np.linalg.solve(A, b)  # ax^2 + bxy + cy^2 + dx + ey + f
+            integrand = lambda x, y: abs(f(x, y) - (
+                coeffs[0] * x**2 + coeffs[1] * x * y + coeffs[2] * y**2 +
+                coeffs[3] * x + coeffs[4] * y + coeffs[5]
+            )) ** p
+        except np.linalg.LinAlgError:
+            return float('inf')
+
+    error, _ = dblquad(
+        integrand,
+        min(v[1] for v in node.vertices), max(v[1] for v in node.vertices),
+        lambda y: min(v[0] for v in node.vertices), lambda y: max(v[0] for v in node.vertices),
+        epsabs=1e-4
+    )
+    return (error) ** (1 / p)
+
+def compute_modified_error(node, e, children_e):
+    """Compute modified error \( \tilde{e} \) for First Algorithm."""
+    d = e - sum(children_e)
+    t = 0.1  # Tuned threshold
+    delta = 0 if d >= t else t - d
+    return e - delta
