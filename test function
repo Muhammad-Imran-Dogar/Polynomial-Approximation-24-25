@@ -1,0 +1,79 @@
+def visualize_simplices_process():
+    """Animate refinement process with original approach and optional degree=2 extension."""
+    plt.style.use('seaborn-v0_8-darkgrid')
+
+    test_functions = {
+        "Linear (x + y)": lambda x, y: x + y,
+        "Quadratic (x^2 + y^2)": lambda x, y: x**2 + y**2,
+        "Smooth (sin(πx)sin(πy))": lambda x, y: np.sin(np.pi * x) * np.sin(np.pi * y),
+        "Oscillatory (sin(10x)cos(10y))": lambda x, y: np.sin(10 * x) * np.cos(10 * y),
+        "Discontinuous (step)": lambda x, y: 1.0 if x + y > 1 else 0.0
+    }
+
+    algorithms = [
+        ("First Algorithm (Degree=0)", lambda f: FirstAlgorithm(f, p=2, degree=0), 'blue'),
+        ("Second Algorithm (Degree=0)", lambda f: SecondAlgorithm(f, p=2, degree=0), 'green'),
+        ("Modified Second (Degree=1)", lambda f: ModifiedSecondAlgorithm(f, p=2, degree=1), 'purple'),
+        ("Modified Second (Degree=2, Extension)", lambda f: ModifiedSecondAlgorithm(f, p=2, degree=2), 'orange')
+    ]
+
+    animations = []
+
+    for fname, f in test_functions.items():
+        print(f"\nAnimating process for {fname}:")
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8), facecolor='#f5f5f5')
+        ax2.set_title("Convergence", fontsize=14)
+        ax2.set_xlabel("Number of Triangles", fontsize=12)
+        ax2.set_ylabel("L² Error", fontsize=12)
+        ax2.set_xscale('log')
+        ax2.set_yscale('log')
+        ax2.grid(True, which="both", linestyle="--")
+
+        for alg_name, alg_class, color in algorithms:
+            alg = alg_class(f)
+            if "Modified" in alg_name:
+                alg.run(tolerance=0.1, max_triangles=50, min_angle=20)
+            else:
+                alg.run(max_steps=5, min_angle=20)
+            print(f"  {alg_name}: {alg.iterations} iterations, Final Error: {alg.errors[-1]:.4f}")
+
+            def update(frame, alg=alg, alg_name=alg_name, color=color):
+                ax1.clear()
+                ax1.set_title(f"{alg_name} - {fname}\nIteration: {frame}/{alg.iterations}",
+                              fontsize=14, color=color)
+                ax1.set_xlim(0, 1)
+                ax1.set_ylim(0, 1)
+                ax1.set_aspect('equal')
+
+                leaves = alg.states[frame]
+                min_angles = []
+                for leaf in leaves:
+                    vertices = np.array(leaf.vertices)
+                    x, y = vertices[:, 0], vertices[:, 1]
+                    ax1.fill(x, y, color=color, alpha=0.3, edgecolor=color, lw=2)
+                    centroid = np.mean(vertices, axis=0)
+                    error = compute_local_error(alg.f, leaf, alg.p, alg.degree)
+                    ax1.text(centroid[0], centroid[1], f"{error:.2e}", fontsize=8, ha='center')
+                    min_angles.append(min(compute_triangle_angles(leaf.vertices)))
+
+                total_error = alg.errors[frame]
+                avg_min_angle = np.mean(min_angles)
+                ax1.text(0.5, 0.95, f"L² Error: {total_error:.4f}\nAvg Min Angle: {avg_min_angle:.1f}°",
+                         transform=ax1.transAxes, fontsize=10, ha='center')
+
+                ax2.plot(alg.num_triangles[:frame+1], alg.errors[:frame+1],
+                         marker='o', linestyle='-', color=color,
+                         label=f"{alg_name} (Final: {alg.errors[-1]:.4f})" if frame == 0 else "")
+                if frame == 0:
+                    ax2.legend()
+
+            anim = FuncAnimation(fig, update, frames=len(alg.states), interval=500, repeat=False)
+            animations.append(anim)
+            display(HTML(anim.to_html5_video()))
+
+        plt.close(fig)
+
+    return animations
+
+# Run the visualization
+visualize_simplices_process()
