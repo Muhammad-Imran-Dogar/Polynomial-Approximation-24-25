@@ -1,0 +1,41 @@
+def compute_triangle_angles(vertices):
+    """Compute the three angles (in degrees) of a triangle given its vertices."""
+    v0, v1, v2 = vertices
+    # Vectors from each vertex to the others
+    vec01 = np.array(v1) - v0
+    vec02 = np.array(v2) - v0
+    vec12 = np.array(v2) - v1
+    vec10 = np.array(v0) - v1
+    vec20 = np.array(v0) - v2
+    vec21 = np.array(v1) - v2
+
+    # Angle at v0 (between v0-v1 and v0-v2)
+    cos0 = np.dot(vec01, vec02) / (np.linalg.norm(vec01) * np.linalg.norm(vec02))
+    angle0 = np.degrees(np.arccos(np.clip(cos0, -1, 1)))
+
+    # Angle at v1 (between v1-v0 and v1-v2)
+    cos1 = np.dot(vec10, vec12) / (np.linalg.norm(vec10) * np.linalg.norm(vec12))
+    angle1 = np.degrees(np.arccos(np.clip(cos1, -1, 1)))
+
+    # Angle at v2 (between v2-v0 and v2-v1)
+    cos2 = np.dot(vec20, vec21) / (np.linalg.norm(vec20) * np.linalg.norm(vec21))
+    angle2 = np.degrees(np.arccos(np.clip(cos2, -1, 1)))
+
+    return angle0, angle1, angle2
+
+def is_acceptable_triangle(vertices, min_angle=20):
+    """Check if a triangle has a minimum angle above the threshold."""
+    angles = compute_triangle_angles(vertices)
+    return min(angles) >= min_angle
+
+
+def get_longest_edge(vertices):
+    """Return indices of vertices forming the longest edge."""
+    v0, v1, v2 = vertices
+    sides = [
+        (np.linalg.norm(np.array(v1) - np.array(v0)), 0, 1),
+        (np.linalg.norm(np.array(v2) - np.array(v1)), 1, 2),
+        (np.linalg.norm(np.array(v0) - np.array(v2)), 2, 0)
+    ]
+    longest = max(sides, key=lambda x: x[0])
+    return longest[1], longest[2]
