@@ -1,0 +1,53 @@
+class TreeNode:
+    def __init__(self, vertices, parent=None):
+        self.vertices = vertices
+        self.parent = parent
+        self.children = []
+        self.is_leaf = True
+        self.generation = 0 if parent is None else parent.generation + 1  # Add generation
+
+    def add_children(self, children):
+        self.children = children
+        self.is_leaf = False
+        for child in children:
+            child.parent = self
+            child.generation = self.generation + 1  # Propagate generation
+class Tree:
+    """Tree managing the triangulation hierarchy with two initial triangles."""
+    def __init__(self):
+        self.root_nodes = [
+            TreeNode([(0, 0), (1, 0), (1, 1)]),  # Bottom-left to top-right
+            TreeNode([(0, 0), (1, 1), (0, 1)])   # Top-left to bottom-right
+        ]
+        self.leaves = self.root_nodes.copy()
+
+    def update_leaves(self):
+        """Update the list of leaf nodes via traversal."""
+        self.leaves = []
+        def traverse(node):
+            if node.is_leaf:
+                self.leaves.append(node)
+            else:
+                for child in node.children:
+                    traverse(child)
+        for root in self.root_nodes:
+            traverse(root)
+
+def refine_triangulation(triangulation):
+    """Refines leaf nodes into four sub-triangles via midpoints."""
+    new_triangles = []
+    for node in triangulation:
+        if node.is_leaf:
+            v0, v1, v2 = node.vertices
+            mid01 = ((v0[0] + v1[0]) / 2, (v0[1] + v1[1]) / 2)
+            mid12 = ((v1[0] + v2[0]) / 2, (v1[1] + v2[1]) / 2)
+            mid20 = ((v2[0] + v0[0]) / 2, (v2[1] + v0[1]) / 2)
+            child1 = TreeNode([v0, mid01, mid20], parent=node)
+            child2 = TreeNode([mid01, v1, mid12], parent=node)
+            child3 = TreeNode([mid20, mid12, v2], parent=node)
+            child4 = TreeNode([mid01, mid12, mid20], parent=node)
+            node.add_children([child1, child2, child3, child4])
+            new_triangles.extend([child1, child2, child3, child4])
+        else:
+            new_triangles.append(node)
+    return new_triangles
